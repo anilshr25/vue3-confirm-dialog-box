@@ -1,6 +1,6 @@
 {
   "name": "vue3-confirm-dialog-box",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "type": "module",
   "files": [
     "dist"
