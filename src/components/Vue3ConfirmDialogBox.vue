@@ -93,6 +93,7 @@ export default {
       if (confirm && dialog.auth && !password) return;
       isShow.value = false;
       if (params.callback) {
+        console.log("Adsa");
         params.callback(confirm, password.value);
       }
     }
@@ -119,9 +120,9 @@ export default {
       }
     }
 
-    function open(params) {
+    function open(parameters) {
       resetState();
-      Object.assign(params, params);
+      Object.assign(params, parameters);
       isShow.value = true;
       Object.entries(params).forEach((param) => {
         if (typeof param[1] == typeof dialog[param[0]]) {
