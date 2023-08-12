@@ -19,13 +19,13 @@ In main.js or plugin (for Nuxt.js):
 
 ```js
 import { createApp } from "vue";
-import Vue3ConfirmDialog from "vue3-confirm-dialog-box";
+import Vue3ConfirmDialogBox from "vue3-confirm-dialog-box";
 import "vue3-confirm-dialog-box/style";
 
 const app = createApp();
 
-app.use(Vue3ConfirmDialog);
-app.component("vue3-confirm-dialog-box", Vue3ConfirmDialog.default)
+app.use(Vue3ConfirmDialogBox);
+app.component("vue3-confirm-dialog-box", Vue3ConfirmDialogBox.default)
 ```
 In App.vue (or in the template file for Nuxt.js (layout/default.vue)):
 
@@ -50,13 +50,11 @@ methods: {
     handleClick(){
       this.$confirm(
         {
-          title: 'Confirm your action',
-          message: 'Are you sure?',
-          disableKeys: false,
-          auth: false,
+          title: "Confirm your action",
+          message: "Are you sure?",
           button: {
-            no: 'No',
-            yes: 'Yes'
+            no: "No",
+            yes: "Yes"
           },
           /**
           * Callback Function
@@ -64,7 +62,7 @@ methods: {
           */
           callback: confirm => {
             if (confirm) {
-              // ... do something
+                console.log("Works");
             }
           }
         }
@@ -76,30 +74,28 @@ methods: {
 The plugin automatically sets global provide() with key "vue3-confirm-dialog".
 ```js
 <script setup>
-import { inject } from 'vue'
+import { inject } from "vue"
 
-const confirm = inject('@zapadale/vue3-confirm-dialog');
+const confirm = inject("vue3-confirm-dialog-box");
 
 function test() {
   confirm(
         {
-          title: 'Confirm your action',
-          message: 'Are you sure?',
-          disableKeys: false,
-          auth: false,
+          title: "Confirm your action",
+          message: "Are you sure?",
           button: {
-            no: 'No',
-            yes: 'Yes'
+            no: "No",
+            yes: "Yes"
           },
           /**
           * Callback Function
           * @param {Boolean} confirm
           */
-          callback: confirm => {
+          callback: (confirm: boolean) => {
             if (confirm) {
               console.log('Works');
             }
-          }
+          },
         }
       )
 })
