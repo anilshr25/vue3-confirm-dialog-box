@@ -93,7 +93,6 @@ export default {
       if (confirm && dialog.auth && !password) return;
       isShow.value = false;
       if (params.callback) {
-        console.log("Adsa");
         params.callback(confirm, password.value);
       }
     }
