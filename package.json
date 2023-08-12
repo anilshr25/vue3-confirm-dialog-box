@@ -32,14 +32,14 @@
     "popup"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/rowathy/vue3-confirm-dialog-box#readme",
+  "homepage": "https://github.com/anilshr25/vue3-confirm-dialog-box/#readme",
   "description": "Simple Confirm Dialog verification plugin with Vue 3.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anilshr25/confirm-dialog-box.git"
+    "url": "git+https://github.com/anilshr25/vue3-confirm-dialog-box/.git"
   },
   "author": "",
   "bugs": {
-    "url": "https://github.com/anilshr25/confirm-dialog-box/issues"
+    "url": "https://github.com/anilshr25/vue3-confirm-dialog-box/issues"
   }
 }
