@@ -25,7 +25,7 @@ import "vue3-confirm-dialog-box/style";
 const app = createApp();
 
 app.use(Vue3ConfirmDialogBox);
-app.component("vue3-confirm-dialog-box", Vue3ConfirmDialogBox.default)
+app.component("vue3-confirm-dialog-box", Vue3ConfirmDialogBox.default);
 ```
 In App.vue (or in the template file for Nuxt.js (layout/default.vue)):
 
@@ -74,11 +74,11 @@ methods: {
 The plugin automatically sets global provide() with key "vue3-confirm-dialog".
 ```js
 <script setup>
-import { inject } from "vue"
+import { inject } from "vue";
 
-const confirm = inject("vue3-confirm-dialog-box");
+const confirm: (any) = inject("vue3-confirm-dialog-box");
 
-function test() {
+function handleClick() {
   confirm(
         {
           title: "Confirm your action",
