@@ -98,7 +98,7 @@ function handleClick() {
           },
         }
       )
-})
+};
 
 </script>
 ```
