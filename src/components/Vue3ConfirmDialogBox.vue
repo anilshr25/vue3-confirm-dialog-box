@@ -1,335 +1,545 @@
 <template>
-  <transition name="fade">
-    <div v-if="isShow" class="vc-overlay" id="confirm-box">
-      <transition name="zoom">
-        <div v-if="isShow" ref="vueConfirmDialog" class="vc-container">
-          <span class="vc-text-grid">
-            <h4 v-if="dialog.title" class="vc-title" v-html="dialog.title"></h4>
-            <p
-              v-if="dialog.message"
-              class="vc-text"
-              v-html="dialog.message"
-            ></p>
-            <span v-if="dialog.auth">
-              <input
-                v-focus
-                v-model="password"
-                class="vc-input"
-                type="password"
-                name="vc-password"
-                placeholder="Password"
-                autocomplete="off"
-              />
-            </span>
-          </span>
-          <div
-            class="vc-btn-grid"
-            :class="{ isMono: !dialog.button.no || !dialog.button.yes }"
+  <teleport to="body">
+    <transition name="fade">
+      <div 
+        v-if="isShow" 
+        class="vc-overlay" 
+        id="confirm-box"
+        role="dialog"
+        aria-modal="true"
+        :aria-labelledby="dialog.title ? 'vc-dialog-title' : undefined"
+        :aria-describedby="dialog.message ? 'vc-dialog-message' : undefined"
+        @click="handleClickOverlay"
+      >
+        <transition name="zoom">
+          <div 
+            v-if="isShow" 
+            ref="vueConfirmDialog" 
+            class="vc-container"
+            @click.stop
           >
-            <button
-              @click.stop="(e) => handleClickButton(e, false)"
-              class="vc-btn left"
-              type="button"
+            <div class="vc-text-grid">
+              <h4 
+                v-if="dialog.title" 
+                id="vc-dialog-title"
+                class="vc-title" 
+                v-html="dialog.title"
+              ></h4>
+              <p
+                v-if="dialog.message"
+                id="vc-dialog-message"
+                class="vc-text"
+                v-html="dialog.message"
+              ></p>
+              <div v-if="dialog.auth" class="vc-auth-container">
+                <input
+                  ref="passwordInput"
+                  v-model="password"
+                  class="vc-input"
+                  type="password"
+                  name="vc-password"
+                  :placeholder="dialog.authPlaceholder || 'Password'"
+                  autocomplete="current-password"
+                  :aria-label="dialog.authPlaceholder || 'Password'"
+                  @keydown.enter="handleEnterKey"
+                  @keydown.escape="handleEscapeKey"
+                />
+              </div>
+            </div>
+            <div
+              class="vc-btn-grid"
+              :class="{ isMono: !dialog.button.no || !dialog.button.yes }"
             >
-              {{ dialog.button.no }}
-            </button>
+              <button
+                v-if="dialog.button.no"
+                ref="cancelButton"
+                @click="handleClickButton($event, false)"
+                class="vc-btn left"
+                type="button"
+                :aria-label="`${dialog.button.no} - Cancel action`"
+              >
+                {{ dialog.button.no }}
+              </button>
 
-            <button
-              :disabled="dialog.auth ? !password : false"
-              @click.stop="(e) => handleClickButton(e, true)"
-              class="vc-btn"
-              type="button"
-            >
-              {{ dialog.button.yes }}
-            </button>
+              <button
+                ref="confirmButton"
+                :disabled="dialog.auth && !password"
+                @click="handleClickButton($event, true)"
+                class="vc-btn"
+                :class="{ 'vc-btn-primary': !dialog.button.no }"
+                type="button"
+                :aria-label="`${dialog.button.yes} - Confirm action`"
+              >
+                {{ dialog.button.yes }}
+              </button>
+            </div>
           </div>
-        </div>
-      </transition>
-    </div>
-  </transition>
+        </transition>
+      </div>
+    </transition>
+  </teleport>
 </template>
 
 <script>
 import event from "../event";
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from "vue";
 
 export default {
-  setup() {
+  name: 'Vue3ConfirmDialogBox',
+  emits: ['confirm', 'cancel'],
+  setup(props, { emit }) {
     const isShow = ref(false);
-    const password = ref(null);
+    const password = ref('');
+    const passwordInput = ref(null);
+    const cancelButton = ref(null);
+    const confirmButton = ref(null);
+    const vueConfirmDialog = ref(null);
+    
     const dialog = reactive({
       auth: false,
       title: "",
       message: "",
-      button: {},
+      button: { yes: 'Yes', no: 'Cancel' },
+      authPlaceholder: 'Password'
     });
-    const params = reactive({});
+    
+    let currentParams = null;
+    let previousActiveElement = null;
+
+    // Event handlers
+    const handleOpen = (params) => {
+      open(params);
+    };
+
+    const handleClose = () => {
+      handleClickOverlay();
+    };
 
     onMounted(() => {
-      event.on("open", (params) => {
-        open(params);
-      });
+      event.on("open", handleOpen);
+      event.on("close", handleClose);
+      document.addEventListener("keydown", handleGlobalKeydown);
+    });
 
-      event.on("close", () => {
-        handleClickOverlay({ target: { id: "confirm-box" } });
-      });
+    onUnmounted(() => {
+      event.off("open", handleOpen);
+      event.off("close", handleClose);
+      document.removeEventListener("keydown", handleGlobalKeydown);
+      
+      // Restore focus if dialog is still open
+      if (previousActiveElement) {
+        try {
+          previousActiveElement.focus();
+        } catch (e) {
+          // Element might not be focusable anymore
+        }
+      }
+    });
 
-      window.addEventListener("keydown", handleKey);
+    // Watch for dialog visibility to manage focus
+    watch(isShow, async (newVal) => {
+      if (newVal) {
+        // Store the previously focused element
+        previousActiveElement = document.activeElement;
+        
+        // Wait for DOM update
+        await nextTick();
+        
+        // Set initial focus
+        if (dialog.auth && passwordInput.value) {
+          passwordInput.value.focus();
+        } else if (cancelButton.value) {
+          cancelButton.value.focus();
+        } else if (confirmButton.value) {
+          confirmButton.value.focus();
+        }
+      } else {
+        // Restore focus when dialog closes
+        if (previousActiveElement && previousActiveElement !== document.body) {
+          try {
+            previousActiveElement.focus();
+          } catch (e) {
+            // Element might not be focusable anymore
+          }
+        }
+        previousActiveElement = null;
+      }
     });
 
     function resetState() {
-      password.value = null;
+      password.value = '';
       Object.assign(dialog, {
         auth: false,
         title: "",
         message: "",
-        button: {},
-        callback: () => {},
+        button: { yes: 'Yes', no: 'Cancel' },
+        authPlaceholder: 'Password'
       });
+      currentParams = null;
     }
 
-    function handleClickButton({ target }, confirm) {
-      if (target.id == "confirm-box") return;
-      if (confirm && dialog.auth && !password) return;
+    function handleClickButton(event, confirm) {
+      if (event?.target?.id === "confirm-box") return;
+      
+      // Validate auth requirement
+      if (confirm && dialog.auth && !password.value.trim()) {
+        return;
+      }
+      
       isShow.value = false;
-      if (params.callback) {
-        params.callback(confirm, password.value);
+      
+      // Emit Vue events
+      emit(confirm ? 'confirm' : 'cancel', {
+        confirmed: confirm,
+        password: password.value
+      });
+      
+      // Call callback if provided
+      if (currentParams?.callback) {
+        currentParams.callback(confirm, password.value);
       }
     }
 
-    function handleClickOverlay({ target }) {
-      if (target.id == "confirm-box") {
-        isShow.value = false;
-        if (params.callback) {
-          params.callback(false, password.value);
+    function handleClickOverlay() {
+      isShow.value = false;
+      
+      emit('cancel', {
+        confirmed: false,
+        password: password.value
+      });
+      
+      if (currentParams?.callback) {
+        currentParams.callback(false, password.value);
+      }
+    }
+
+    function handleGlobalKeydown(e) {
+      if (!isShow.value) return;
+      
+      // Trap focus within dialog
+      if (e.key === 'Tab') {
+        trapFocus(e);
+      } else if (e.key === 'Escape') {
+        handleEscapeKey();
+      } else if (e.key === 'Enter' && !dialog.auth) {
+        // Only auto-confirm on Enter if not in auth mode
+        handleEnterKey();
+      }
+    }
+
+    function handleEnterKey() {
+      if (dialog.auth && !password.value.trim()) {
+        return;
+      }
+      handleClickButton(null, true);
+    }
+
+    function handleEscapeKey() {
+      handleClickOverlay();
+    }
+
+    function trapFocus(e) {
+      const focusableElements = vueConfirmDialog.value?.querySelectorAll(
+        'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      
+      if (!focusableElements?.length) return;
+      
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement.focus();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement.focus();
         }
       }
     }
 
-    function handleKey(e) {
-      if (!isShow.value) {
+    function open(parameters) {
+      if (!parameters || typeof parameters !== 'object') {
+        console.warn('vue3-confirm-dialog-box: Invalid parameters provided to open()');
         return;
       }
-
-      if (e.key == "Escape") {
-        handleClickOverlay({ target: { id: "confirm-box" } });
-      }
-      if (e.key == "Enter") {
-        handleClickButton({ target: { id: "" } }, true);
-      }
-    }
-
-    function open(parameters) {
+      
       resetState();
-      Object.assign(params, parameters);
+      currentParams = parameters;
       isShow.value = true;
-      Object.entries(params).forEach((param) => {
-        if (typeof param[1] == typeof dialog[param[0]]) {
-          dialog[param[0]] = param[1];
+      
+      // Safely merge parameters with dialog state
+      Object.keys(parameters).forEach((key) => {
+        if (key === 'button' && typeof parameters.button === 'object') {
+          Object.assign(dialog.button, parameters.button);
+        } else if (key in dialog && typeof parameters[key] === typeof dialog[key]) {
+          dialog[key] = parameters[key];
         }
       });
     }
 
     return {
-      isShow: isShow,
-      password: password,
-      dialog: dialog,
-      params: params,
-      handleClickButton: handleClickButton,
-      handleClickOverlay: handleClickOverlay,
+      isShow,
+      password,
+      dialog,
+      passwordInput,
+      cancelButton,
+      confirmButton,
+      vueConfirmDialog,
+      handleClickButton,
+      handleClickOverlay,
+      handleEnterKey,
+      handleEscapeKey,
     };
-  },
-  directives: {
-    focus: (el) => {
-      el.focus();
-    },
-  },
+  }
 };
 </script>
 
 <style>
 :root {
-  --title-color: black;
-  --message-color: black;
-  --overlay-background-color: #0000004a;
-  --container-box-shadow: #0000004a 0px 3px 8px 0px;
-  --base-background-color: #ffffff;
-  --button-color: #4083ff;
-  --button-background-color: #ffffff;
-  --button-border-color: #e0e0e0;
-  --button-background-color-disabled: #f5f5f5;
-  --button-background-color-hover: #f5f5f5;
-  --button-box-shadow-active: inset 0 2px 0px 0px #00000014;
-  --input-background-color: #ebebeb;
-  --input-background-color-hover: #dfdfdf;
-  --font-size-m: 16px;
-  --font-size-s: 14px;
-  --font-weight-black: 900;
-  --font-weight-bold: 700;
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --font-weight-light: 300;
+  --vc-title-color: #1a1a1a;
+  --vc-message-color: #4a4a4a;
+  --vc-overlay-background-color: rgba(0, 0, 0, 0.5);
+  --vc-container-box-shadow: rgba(0, 0, 0, 0.15) 0px 10px 40px 0px;
+  --vc-base-background-color: #ffffff;
+  --vc-button-color: #007bff;
+  --vc-button-background-color: #ffffff;
+  --vc-button-border-color: #e0e0e0;
+  --vc-button-background-color-disabled: #f8f9fa;
+  --vc-button-background-color-hover: #f8f9fa;
+  --vc-button-box-shadow-active: inset 0 2px 4px 0px rgba(0, 0, 0, 0.1);
+  --vc-primary-button-background: #007bff;
+  --vc-primary-button-color: #ffffff;
+  --vc-input-background-color: #f8f9fa;
+  --vc-input-background-color-focus: #ffffff;
+  --vc-input-border-color: #dee2e6;
+  --vc-input-border-color-focus: #007bff;
+  --vc-font-size-base: 16px;
+  --vc-font-size-sm: 14px;
+  --vc-font-weight-bold: 600;
+  --vc-font-weight-medium: 500;
+  --vc-font-weight-normal: 400;
+  --vc-border-radius: 12px;
+  --vc-border-radius-sm: 8px;
 }
 
 /**
-* Dialog
+* Dialog Styles
 */
-
 .vc-overlay *,
 .vc-overlay *:before,
 .vc-overlay *:after {
-  -webkit-box-sizing: border-box;
   box-sizing: border-box;
-  text-decoration: none;
-  -webkit-touch-callout: none;
-  -moz-osx-font-smoothing: grayscale;
-  margin: 0;
-  padding: 0;
-}
-
-.vc-title {
-  color: var(--title-color);
-  padding: 0 1rem;
-  width: 100%;
-  font-weight: var(--font-weight-black);
-  text-align: center;
-  font-size: var(--font-size-m);
-  line-height: initial;
-  margin-bottom: 5px;
-}
-
-.vc-text {
-  color: var(--message-color);
-  padding: 0 1rem;
-  width: 100%;
-  font-weight: var(--font-weight-medium);
-  text-align: center;
-  font-size: var(--font-size-s);
-  line-height: initial;
 }
 
 .vc-overlay {
-  background-color: var(--overlay-background-color);
-  width: 100%;
-  height: 100%;
-  transition: all 0.1s ease-in;
+  background-color: var(--vc-overlay-background-color);
+  width: 100vw;
+  height: 100vh;
   left: 0;
   top: 0;
-  z-index: 999999999999;
+  z-index: 9999;
   position: fixed;
   display: flex;
   justify-content: center;
   align-items: center;
-  align-content: baseline;
-}
-
-.vc-container {
-  background-color: var(--base-background-color);
-  border-radius: 1rem;
-  width: 286px;
-  height: auto;
-  display: grid;
-  grid-template-rows: 1fr max-content;
-  box-shadow: var(--container-box-shadow);
-}
-
-.vc-text-grid {
   padding: 1rem;
 }
 
-.vc-btn-grid {
+.vc-container {
+  background-color: var(--vc-base-background-color);
+  border-radius: var(--vc-border-radius);
   width: 100%;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  border-radius: 0 0 1rem 1rem;
+  max-width: 400px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--vc-container-box-shadow);
   overflow: hidden;
 }
 
+.vc-text-grid {
+  padding: 2rem 1.5rem 1.5rem;
+  text-align: center;
+}
+
+.vc-title {
+  color: var(--vc-title-color);
+  font-weight: var(--vc-font-weight-bold);
+  font-size: var(--vc-font-size-base);
+  line-height: 1.4;
+  margin: 0 0 0.75rem 0;
+}
+
+.vc-text {
+  color: var(--vc-message-color);
+  font-weight: var(--vc-font-weight-normal);
+  font-size: var(--vc-font-size-sm);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.vc-auth-container {
+  margin-top: 1.5rem;
+}
+
+.vc-input {
+  width: 100%;
+  outline: none;
+  border-radius: var(--vc-border-radius-sm);
+  height: 44px;
+  border: 1px solid var(--vc-input-border-color);
+  background-color: var(--vc-input-background-color);
+  padding: 0 1rem;
+  font-size: var(--vc-font-size-base);
+  transition: all 0.2s ease;
+  color: var(--vc-title-color);
+}
+
+.vc-input:hover {
+  background-color: var(--vc-input-background-color-focus);
+  border-color: var(--vc-input-border-color-focus);
+}
+
+.vc-input:focus {
+  background-color: var(--vc-input-background-color-focus);
+  border-color: var(--vc-input-border-color-focus);
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.vc-btn-grid {
+  display: flex;
+  border-top: 1px solid var(--vc-button-border-color);
+}
+
 .vc-btn-grid.isMono {
-  grid-template-columns: 1fr;
+  display: block;
 }
 
 .vc-btn {
-  border-radius: 0 0 1rem 0;
-  color: var(--button-color);
-  background-color: var(--button-background-color);
+  flex: 1;
+  background-color: var(--vc-button-background-color);
   border: 0;
-  font-size: 1rem;
-  border-top: 1px solid var(--button-border-color);
+  color: var(--vc-button-color);
+  font-size: var(--vc-font-size-base);
+  font-weight: var(--vc-font-weight-medium);
   cursor: pointer;
-  font-weight: var(--font-weight-bold);
   outline: none;
-  min-height: 50px;
+  min-height: 52px;
+  padding: 0 1rem;
+  transition: all 0.2s ease;
 }
 
-.vc-btn:hover {
-  background-color: var(--button-background-color-hover);
+.vc-btn:hover:not(:disabled) {
+  background-color: var(--vc-button-background-color-hover);
+}
+
+.vc-btn:focus {
+  box-shadow: inset 0 0 0 2px var(--vc-button-color);
+}
+
+.vc-btn:active:not(:disabled) {
+  box-shadow: var(--vc-button-box-shadow-active);
 }
 
 .vc-btn:disabled {
-  background-color: var(--button-background-color-disabled);
-}
-
-.vc-btn:active {
-  box-shadow: var(--button-box-shadow-active);
+  background-color: var(--vc-button-background-color-disabled);
+  color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .vc-btn.left {
-  border-radius: 0;
-  border-right: 1px solid var(--button-border-color);
+  border-right: 1px solid var(--vc-button-border-color);
 }
 
-.vc-input[type="password"] {
-  width: 100%;
-  outline: none;
-  border-radius: 8px;
-  height: 35px;
-  border: 0;
-  margin: 5px 0;
-  background-color: var(--input-background-color);
-  padding: 0 0.5rem;
-  font-size: var(--font-size-m);
-  transition: 0.21s ease;
+.vc-btn-primary {
+  background-color: var(--vc-primary-button-background);
+  color: var(--vc-primary-button-color);
 }
 
-.vc-input[type="password"]:hover,
-.vc-input[type="password"]:focus {
-  background-color: var(--input-background-color-hover);
+.vc-btn-primary:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.vc-btn-primary:focus {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5);
 }
 
 /**
-* Transition
+* Transitions
 */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.21s;
+  transition: opacity 0.3s ease;
 }
 
-.fade-enter,
+.fade-enter-from,
 .fade-leave-to {
   opacity: 0;
 }
 
-.zoom-enter-active,
-.zoom-leave-active {
-  animation-duration: 0.21s;
-  animation-fill-mode: both;
-  animation-name: zoom;
+.zoom-enter-active {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .zoom-leave-active {
-  animation-direction: reverse;
+  transition: all 0.2s ease-in;
 }
 
-@keyframes zoom {
-  from {
-    opacity: 0;
-    transform: scale3d(1.1, 1.1, 1.1);
+.zoom-enter-from {
+  opacity: 0;
+  transform: scale(0.8) translateY(-20px);
+}
+
+.zoom-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+/**
+* Responsive Design
+*/
+@media (max-width: 480px) {
+  .vc-container {
+    margin: 1rem;
+    max-width: calc(100vw - 2rem);
   }
+  
+  .vc-text-grid {
+    padding: 1.5rem 1rem 1rem;
+  }
+  
+  .vc-title {
+    font-size: calc(var(--vc-font-size-base) - 1px);
+  }
+  
+  .vc-btn {
+    min-height: 48px;
+  }
+}
 
-  100% {
-    opacity: 1;
-    transform: scale3d(1, 1, 1);
+/**
+* Dark mode support
+*/
+@media (prefers-color-scheme: dark) {
+  :root {
+    --vc-title-color: #ffffff;
+    --vc-message-color: #e0e0e0;
+    --vc-overlay-background-color: rgba(0, 0, 0, 0.8);
+    --vc-base-background-color: #2d2d2d;
+    --vc-button-color: #4dabf7;
+    --vc-button-background-color: #2d2d2d;
+    --vc-button-border-color: #404040;
+    --vc-button-background-color-disabled: #3a3a3a;
+    --vc-button-background-color-hover: #3a3a3a;
+    --vc-input-background-color: #3a3a3a;
+    --vc-input-background-color-focus: #404040;
+    --vc-input-border-color: #555555;
+    --vc-input-border-color-focus: #4dabf7;
   }
 }
 </style>
