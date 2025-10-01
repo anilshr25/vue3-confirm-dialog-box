@@ -3,7 +3,8 @@ import event from './event';
 
 export default {
   install: (app, args = {}) => {
-    app.component(args.componentName || "Vue3ConfirmDialogBox" || "vue3-confirm-dialog-box", Vue3ConfirmDialogBox)
+    const componentName = args.componentName || "Vue3ConfirmDialogBox"
+    app.component(componentName, Vue3ConfirmDialogBox)
 
     const confirm = params => {
 

@@ -11,6 +11,9 @@ importers:
       vue:
         specifier: ^3.5.22
         version: 3.5.22(typescript@5.9.3)
+      vue3-confirm-dialog-box:
+        specifier: ^1.1.4
+        version: 1.1.4(vue@3.5.22(typescript@5.9.3))
     devDependencies:
       '@tsconfig/node22':
         specifier: ^22.0.2
@@ -1521,6 +1524,11 @@ packages:
     peerDependencies:
       typescript: '>=5.0.0'
 
+  vue3-confirm-dialog-box@1.1.4:
+    resolution: {integrity: sha512-iGBQC6ilEAGR7Wk4CR7c/gzV4tO/SmyyQu+doaXI6p+d/vYOWGY6s5EgdUxIlvUHzzfPaIF+Cjx46fnFxlGu2g==}
+    peerDependencies:
+      vue: ^3.3.0
+
   vue@3.5.22:
     resolution: {integrity: sha512-toaZjQ3a/G/mYaLSbV+QsQhIdMo9x5rrqIpYRObsJ6T/J+RyCSFwN2LHNVH9v8uIcljDNa3QzPVdv3Y6b9hAJQ==}
     peerDependencies:
@@ -3006,6 +3014,10 @@ snapshots:
       '@volar/typescript': 2.4.23
       '@vue/language-core': 3.1.0(typescript@5.9.3)
       typescript: 5.9.3
+
+  vue3-confirm-dialog-box@1.1.4(vue@3.5.22(typescript@5.9.3)):
+    dependencies:
+      vue: 3.5.22(typescript@5.9.3)
 
   vue@3.5.22(typescript@5.9.3):
     dependencies:

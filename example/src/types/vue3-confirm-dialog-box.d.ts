@@ -1,0 +1,58 @@
+// Type declarations for vue3-confirm-dialog-box
+declare module 'vue3-confirm-dialog-box' {
+  import type { Plugin } from 'vue'
+
+  export interface ConfirmDialogButton {
+    yes?: string;
+    no?: string | null;
+  }
+
+  export interface ConfirmDialogOptions {
+    title?: string;
+    message?: string;
+    button?: ConfirmDialogButton;
+    auth?: boolean;
+    authPlaceholder?: string;
+    callback?: (confirmed: boolean, password?: string) => void;
+  }
+
+  export interface ConfirmDialogResult {
+    confirmed: boolean;
+    password?: string;
+  }
+
+  export interface ConfirmFunction {
+    (options?: ConfirmDialogOptions): Promise<ConfirmDialogResult>;
+    close(): void;
+    setDefaults?(defaults: Partial<ConfirmDialogOptions>): void;
+  }
+
+  export interface PluginOptions {
+    componentName?: string;
+  }
+
+  const Vue3ConfirmDialogBox: Plugin<PluginOptions>
+  export default Vue3ConfirmDialogBox
+}
+
+declare module 'vue3-confirm-dialog-box/style' {
+  // CSS module - no exports
+}
+
+// Vue global properties augmentation
+declare module '@vue/runtime-core' {
+  interface ComponentCustomProperties {
+    $confirm: import('vue3-confirm-dialog-box').ConfirmFunction;
+  }
+
+  interface GlobalProperties {
+    $confirm: import('vue3-confirm-dialog-box').ConfirmFunction;
+  }
+}
+
+// Additional Vue module augmentation for composition API
+declare module 'vue' {
+  interface ComponentCustomProperties {
+    $confirm: import('vue3-confirm-dialog-box').ConfirmFunction;
+  }
+}
